@@ -1,0 +1,27 @@
+{
+  "features": {
+    "monitoring": {
+      "systeminformation": {
+        "stats": ["cpu", "memory", "disk"],
+        "charts": {
+          "cpu": {
+            "label": "CPU Usage",
+            "backgroundColor": ""
+          },
+          "memory": { "label": "Memory Usage", "backgroundColor": "" },
+          "disk": { "label": "Disk Usage", "backgroundColor": "" }
+        },
+        "sysInfo": [
+          "cpu",
+          "cpuCurrentSpeed",
+          "mem",
+          "memLayout",
+          "fsSize",
+          "osInfo",
+          "versions",
+          "users"
+        ]
+      }
+    }
+  }
+}

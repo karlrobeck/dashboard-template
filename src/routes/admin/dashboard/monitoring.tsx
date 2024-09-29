@@ -1,174 +1,339 @@
-import { createEffect, createResource, createSignal, For, JSX, onCleanup, Resource, Show, Suspense } from "solid-js"
-import CardProgress from "~/components/CardProgress"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
-import { LineChart } from "~/components/ui/charts"
-import { ProgressCircle } from "~/components/ui/progress-circle"
-import sysInformation, { Systeminformation } from "systeminformation"
-import { SystemMonitorStats } from "~/routes/api/monitor"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
-import { Skeleton } from "~/components/ui/skeleton"
+import {
+  Accessor,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  JSX,
+  onCleanup,
+  onMount,
+  Resource,
+  Show,
+  Suspense,
+} from "solid-js";
+import CardProgress from "~/components/CardProgress";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import SysInfoCardTable from "~/components/SysInfoCard";
+import sysInfo from "systeminformation";
+import {
+  action,
+  createAsync,
+  redirect,
+  useAction,
+  useSubmission,
+} from "@solidjs/router";
+import type { APIEvent } from "@solidjs/start/server";
+import { getRequestEvent } from "solid-js/web";
+import { getCookie, getEvent, setCookie } from "vinxi/http";
+import { verifyRole, verifyScopes } from "~/lib/security";
+import globalConfig from "~/../config.json";
+import {
+  calculateCPUUsage,
+  calculateDiskUsage,
+  calculateMemoryUsage,
+} from "~/lib/monitoring";
+import { LineChart } from "~/components/ui/charts";
+import { Chart } from "chart.js";
+import { mergeRefs, Ref, Refs } from "@solid-primitives/refs";
+export interface SystemMonitorInfo {
+  cpu: sysInfo.Systeminformation.CpuData;
+  cpuCurrentSpeed: sysInfo.Systeminformation.CpuCurrentSpeedData;
+  mem: sysInfo.Systeminformation.MemData;
+  memLayout: sysInfo.Systeminformation.MemLayoutData;
+  fsSize: sysInfo.Systeminformation.FsSizeData[];
+  osInfo: sysInfo.Systeminformation.OsData;
+  shell: string;
+  versions: sysInfo.Systeminformation.VersionData;
+  users: sysInfo.Systeminformation.UserData;
+}
 
-const SystemStats = ({ sysInfo }: { sysInfo: Resource<SystemMonitorStats> }) => {
+export interface SystemMonitorMetrics {
+  cpuCurrentSpeed: sysInfo.Systeminformation.CpuCurrentSpeedData;
+  mem: sysInfo.Systeminformation.MemData;
+  fsSize: sysInfo.Systeminformation.FsSizeData[];
+}
 
-    const ramUsage = (): number => {
-        const totalMem = sysInfo.latest?.mem.total || 0;
-        const activeMem = sysInfo.latest?.mem.active || 0;
-        return parseFloat(((activeMem / totalMem) * 100).toFixed(2))
+const SystemMetrics = ({
+  sysStats,
+}: {
+  sysStats: Accessor<SystemMonitorMetrics | undefined>;
+}) => {
+  const metricData = createMemo(() => {
+    const metrics: Record<string, number> = {};
+
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes("cpu")
+    ) {
+      metrics["CPU Usage"] = sysStats()?.cpuCurrentSpeed.avg || 0;
     }
 
-    const diskUsage = (): number => {
-        const usedDisk = sysInfo.latest?.fsSize.map((val) => val.used).reduce((prev, curr) => prev + curr, 0) || 0;
-        const totalDiskSize = sysInfo.latest?.fsSize.map((val) => val.size).reduce((prev, curr) => prev + curr, 0) || 0;
-        return parseFloat(((usedDisk / totalDiskSize) * 100).toFixed(2));
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes(
+        "memory"
+      )
+    ) {
+      metrics["Memory Usage"] = calculateMemoryUsage(
+        sysStats()?.mem.total || 0,
+        sysStats()?.mem.active || 0
+      );
     }
 
-    return <Suspense fallback={<>Loading</>}>
-        <section class="grid grid-cols-3 gap-5">
-            <CardProgress value={sysInfo.latest?.cpuCurrentSpeed.avg || 0}>
-                <div class="space-y-2.5">
-                    <CardDescription>CPU Usage</CardDescription>
-                    <CardTitle>{sysInfo.latest?.cpuCurrentSpeed.avg || 0}%</CardTitle>
-                </div>
-            </CardProgress>
-            <CardProgress value={ramUsage()}>
-                <div class="space-y-2.5">
-                    <CardDescription>Memory Usage</CardDescription>
-                    <CardTitle>{ramUsage()}%</CardTitle>
-                </div>
-            </CardProgress>
-            <CardProgress value={diskUsage()}>
-                <div class="space-y-2.5">
-                    <CardDescription>Disk Usage</CardDescription>
-                    <CardTitle>{diskUsage()}%</CardTitle>
-                </div>
-            </CardProgress>
-        </section>
-    </Suspense>
-}
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes("disk")
+    ) {
+      metrics["Disk Usage"] = calculateDiskUsage(sysStats()?.fsSize || []);
+    }
 
-const SysInfoCard = ({ title, data }: { title: JSX.Element, data: any }) => {
-    return <Suspense fallback={<>Loading</>}>
-        <section>
-            <Card>
-                <CardHeader>
-                    {title}
-                </CardHeader>
-                <CardContent class="space-y-5">
-                    <For each={Object.keys(data)}
-                        fallback={<>Loading</>}
-                        children={(item) => {
-                            const value = data[item]
+    return metrics;
+  });
 
-                            if (typeof value !== "object" && typeof value !== "boolean") {
-                                return <div class="grid grid-cols-2 border-b py-2.5 items-start">
-                                    <CardDescription class="large">{item.toUpperCase()}</CardDescription>
-                                    <span class="muted">{value || "No Information Available"}</span>
-                                </div>
-                            } else if (typeof value === "boolean") {
-                                return <div class="grid grid-cols-2 border-b py-2.5 items-start">
-                                    <CardDescription class="large">{item.toUpperCase()}</CardDescription>
-                                    <span class="muted">{value ? "True" : "False"}</span>
-                                </div>
-                            } else {
-                                const objData = []
-                                for (let key of Object.keys(value)) {
-                                    objData.push(<div class="grid grid-cols-2 border-b py-2.5 items-start">
-                                        <CardDescription class="large">{typeof +item !== "number" && item.toUpperCase()} {key.toUpperCase()}</CardDescription>
-                                        <span class="muted">{typeof value[key] === "boolean" ? value[key] ? "True" : "False" : value[key] || "No Information Available"}</span>
-                                    </div>)
-                                }
-                                return objData
-                            }
-                        }}
-                    />
-                </CardContent>
-            </Card>
+  return (
+    <Show
+      when={sysStats() !== undefined}
+      fallback={
+        <section
+          class={`grid grid-cols-${
+            Object.keys(metricData()).length !== 4
+              ? Object.keys(metricData()).length
+              : 4
+          } gap-5`}
+        >
+          <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
+          <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
+          <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
         </section>
-    </Suspense>
-}
+      }
+    >
+      <section
+        class={`grid grid-cols-${
+          Object.keys(metricData()).length !== 4
+            ? Object.keys(metricData()).length
+            : 4
+        } gap-5`}
+      >
+        <For each={Object.entries(metricData())}>
+          {([name, val]) => (
+            <CardProgress value={val}>
+              <div class="space-y-2.5">
+                <CardDescription>{name.toString()}</CardDescription>
+                <CardTitle>{val}%</CardTitle>
+              </div>
+            </CardProgress>
+          )}
+        </For>
+      </section>
+    </Show>
+  );
+};
 
-const MonitoringLoadingPage = () => {
-    return <article class="space-y-4">
-        <section class="grid grid-cols-3 gap-5">
-            <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
-            <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
-            <div class="w-full h-24 animate-pulse bg-accent/55 rounded-md"></div>
-        </section>
-        <div class="w-1/4 h-10 animate-pulse bg-accent/55 rounded-md"></div>
-        <div class="w-1/2 h-10 animate-pulse bg-accent/55 rounded-md"></div>
-        <div class="w-full h-screen animate-pulse bg-accent/55 rounded-md"></div>
-    </article>
-}
+const MonitorCharts = ({
+  sysStats,
+}: {
+  sysStats: Accessor<SystemMonitorMetrics | undefined>;
+}) => {
+  const metricData = createMemo(() => {
+    const metrics: Record<string, number> = {};
+
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes("cpu")
+    ) {
+      metrics["CPU Usage"] = sysStats()?.cpuCurrentSpeed.avg || 0;
+    }
+
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes(
+        "memory"
+      )
+    ) {
+      metrics["Memory Usage"] = calculateMemoryUsage(
+        sysStats()?.mem.total || 0,
+        sysStats()?.mem.active || 0
+      );
+    }
+
+    if (
+      globalConfig.features.monitoring.systeminformation.stats.includes("disk")
+    ) {
+      metrics["Disk Usage"] = calculateDiskUsage(sysStats()?.fsSize || []);
+    }
+
+    return metrics;
+  });
+
+  return (
+    <section class="h-full w-full">
+      <Tabs>
+        <TabsList>
+          <For
+            each={Object.keys(
+              globalConfig.features.monitoring.systeminformation.charts
+            )}
+          >
+            {(item) => <TabsTrigger value={item}>{item}</TabsTrigger>}
+          </For>
+          <TabsTrigger value="allCharts">All</TabsTrigger>
+        </TabsList>
+        <For
+          each={Object.keys(
+            globalConfig.features.monitoring.systeminformation.charts
+          )}
+        >
+          {(item) => {
+            const chartConfig =
+              globalConfig.features.monitoring.systeminformation.charts;
+            return (
+              <TabsContent value={item}>
+                <MonitorLineChart
+                  backgroundColor={Object(chartConfig)[item].backgroundColor}
+                  name={Object(chartConfig)[item].label}
+                  dataRecord={metricData}
+                />
+              </TabsContent>
+            );
+          }}
+        </For>
+        <TabsContent value="allCharts">
+          <For
+            each={Object.keys(
+              globalConfig.features.monitoring.systeminformation.charts
+            )}
+          >
+            {(item) => {
+              const chartConfig =
+                globalConfig.features.monitoring.systeminformation.charts;
+              return (
+                <MonitorLineChart
+                  backgroundColor={Object(chartConfig)[item].backgroundColor}
+                  name={Object(chartConfig)[item].label}
+                  dataRecord={metricData}
+                />
+              );
+            }}
+          </For>
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+};
+
+const MonitorLineChart = ({
+  dataRecord,
+  name,
+  backgroundColor,
+}: {
+  dataRecord: Accessor<Record<string, number>>;
+  name: string;
+  backgroundColor: string;
+}) => {
+  let chartRef: HTMLCanvasElement | undefined;
+
+  const chartData = {
+    labels: [new Date().getSeconds()],
+    datasets: [
+      {
+        label: name,
+        data: [0],
+        fill: true,
+        backgroundColor: backgroundColor,
+      },
+    ],
+  };
+
+  createEffect(() => {
+    const dataValue = dataRecord()[name] || 0;
+    if (!chartRef) {
+      return;
+    }
+    const chart = Chart.getChart(chartRef);
+    if (chart?.data.datasets[0].data.length === 60) {
+      chart?.data.datasets[0].data.shift();
+      chart?.data.labels?.shift();
+    }
+    chart?.data.datasets[0].data.push(dataValue);
+    chart?.data.labels?.push(new Date().getSeconds());
+    chart?.update();
+  });
+
+  return (
+    <div class="h-64 w-full max-w-screen">
+      <LineChart ref={chartRef} data={chartData} />
+    </div>
+  );
+};
+
+const fetchSysMetrics = action(
+  async (): Promise<SystemMonitorMetrics | undefined> => {
+    "use server";
+    const event = getEvent();
+    if (
+      !(await verifyRole(event, ["admin"])) ||
+      !(await verifyScopes(event, ["admin:monitor:metrics:read"]))
+    ) {
+      return;
+    }
+    return await sysInfo.get({
+      cpuCurrentSpeed: "*",
+      mem: "*",
+      fsSize: "*",
+    });
+  }
+);
+
+const fetchSysInfo = action(
+  async (): Promise<SystemMonitorInfo | undefined> => {
+    "use server";
+    const event = getEvent();
+    if (
+      !(await verifyRole(event, ["admin"])) ||
+      !(await verifyScopes(event, ["admin:monitor:sysInfo:read"]))
+    ) {
+      return;
+    }
+    const sysConfig = () => {
+      const obj: any = {};
+      for (let key of globalConfig.features.monitoring.systeminformation
+        .sysInfo) {
+        obj[key] = "*";
+      }
+      return obj;
+    };
+    return await sysInfo.get(sysConfig());
+  }
+);
 
 const MonitoringPage = () => {
+  const sysInfoAction = useAction(fetchSysInfo);
+  const sysInfoMetricsAction = useAction(fetchSysMetrics);
+  const [sysInfo, setSysInfo] = createSignal<SystemMonitorInfo>();
+  const [sysInfoStats, setSysInfoMetrics] =
+    createSignal<SystemMonitorMetrics>();
 
-    const [sysInfo, { refetch }] = createResource<SystemMonitorStats>(async () => {
-        const response = await fetch('http://127.0.0.1:3000/api/monitor', {
-            method: "GET"
-        })
-        const data: SystemMonitorStats = await response.json();
-        return data
-    });
-    const fetcher = setInterval(async () => {
-        await refetch()
-    }, 1000);
-    onCleanup(() => clearInterval(fetcher))
-    return (
-        <Suspense fallback={<MonitoringLoadingPage />}>
-            <Show fallback={<MonitoringLoadingPage />} when={!sysInfo.loading || sysInfo.latest !== undefined}>
-                <article class="space-y-4">
-                    <SystemStats sysInfo={sysInfo} />
-                    <h4 class="heading-4">System Information</h4>
-                    <Tabs defaultValue="cpuInfo">
-                        <TabsList>
-                            <TabsTrigger value="cpuInfo">CPU</TabsTrigger>
-                            <TabsTrigger value="memInfo">Memory</TabsTrigger>
-                            <TabsTrigger value="diskInfo">Disk</TabsTrigger>
-                            <TabsTrigger value="operatingSystem">Operating System</TabsTrigger>
-                            <TabsTrigger value="versions">OS, Kernel, App Versions</TabsTrigger>
-                            <TabsTrigger value="users">Users</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="cpuInfo">
-                            <SysInfoCard
-                                title={<CardTitle>CPU Information</CardTitle>}
-                                data={sysInfo.latest?.cpu || sysInfo()?.cpu}
-                            />
-                        </TabsContent>
-                        <TabsContent value="memInfo">
-                            <SysInfoCard
-                                title={<CardTitle>Memory Information</CardTitle>}
-                                data={sysInfo.latest?.mem || sysInfo()?.mem}
-                            />
-                        </TabsContent>
-                        <TabsContent value="diskInfo">
-                            <SysInfoCard
-                                title={<CardTitle>Disk Information</CardTitle>}
-                                data={sysInfo.latest?.fsSize || sysInfo()?.fsSize}
-                            />
-                        </TabsContent>
-                        <TabsContent value="operatingSystem">
-                            <SysInfoCard
-                                title={<CardTitle>Operating System Information</CardTitle>}
-                                data={sysInfo.latest?.osInfo || sysInfo()?.osInfo}
-                            />
-                        </TabsContent>
-                        <TabsContent value="versions">
-                            <SysInfoCard
-                                title={<CardTitle>Version Information</CardTitle>}
-                                data={sysInfo.latest?.versions || sysInfo()?.versions}
-                            />
-                        </TabsContent>
-                        <TabsContent value="users">
-                            <SysInfoCard
-                                title={<CardTitle>User Information</CardTitle>}
-                                data={sysInfo.latest?.users || sysInfo()?.users}
-                            />
-                        </TabsContent>
-                    </Tabs>
-                </article>
-            </Show>
-        </Suspense>
-    )
-}
+  onMount(async () => {
+    setSysInfoMetrics(await sysInfoMetricsAction());
+    setSysInfo(await sysInfoAction());
+  });
 
-export default MonitoringPage
+  const fetcher = setInterval(async () => {
+    setSysInfoMetrics(await sysInfoMetricsAction());
+  }, 1000);
+  onCleanup(() => clearInterval(fetcher));
+
+  return (
+    <article class="space-y-4">
+      <SystemMetrics sysStats={sysInfoStats} />
+      <h4 class="heading-4">System Information</h4>
+      <MonitorCharts sysStats={sysInfoStats} />
+      <SysInfoCardTable sysInfo={sysInfo} />
+    </article>
+  );
+};
+
+export default MonitoringPage;

@@ -2,7 +2,18 @@
   "features": {
     "monitoring": {
       "systeminformation": {
-        "stats": ["cpu", "memory", "disk"],
+        "stats": {
+          "enabled":true,
+          "cpu":{
+            "label":"CPU Usage"
+          },
+          "memory":{
+            "label":"Memory Usage"
+          },
+          "disk":{
+            "label":"Disk Usage"
+          }
+        },
         "charts": {
           "cpu": {
             "label": "CPU Usage",

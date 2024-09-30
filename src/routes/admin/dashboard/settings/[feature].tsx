@@ -114,7 +114,7 @@ const GeneralSettings = () => {
       <For
         each={Object.entries(
           editSample(
-            flattenObj(Object(globalConfig)?.features?.[param.feature])
+            flattenObj(Object(globalConfig)?.settings?.[param.feature])
           )
         )}
       >

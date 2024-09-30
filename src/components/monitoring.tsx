@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import lodash from "lodash";
 import { LineChart } from "./ui/charts";
 import { Chart } from "chart.js";
-import globalConfig from "~/../config.json";
 import CardProgress from "./CardProgress";
 import { CardDescription, CardTitle } from "./ui/card";
+import { globalConfig } from "~/config";
 
 export const MonitoringStatCardLoading = () => {
   return (
@@ -149,17 +149,21 @@ export const MonitorLineChart = ({
       return;
     }
     const chart = Chart.getChart(chartRef);
+    if (!chart) {
+      return;
+    }
     if (chart?.data.datasets[0].data.length === 60) {
       chart?.data.datasets[0].data.shift();
       chart?.data.labels?.shift();
     }
+
     chart?.data.datasets[0].data.push(dataValue);
     chart?.data.labels?.push(new Date().getSeconds());
     chart?.update();
   });
 
   return (
-    <div class="h-64 w-full max-w-screen">
+    <div class="h-64 w-full relative">
       <LineChart ref={chartRef} data={chartData} />
     </div>
   );
@@ -170,28 +174,22 @@ export const MonitorCharts = ({
 }: {
   sysStats: Accessor<SystemMonitorMetrics | undefined>;
 }) => {
+  const chartConfig =
+    globalConfig?.settings?.monitoring?.systeminformation?.charts;
   const metricData = createMemo(() => {
     const metrics: Record<string, number> = {};
-    if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.charts?.cpu
-    ) {
+    if (globalConfig?.settings?.monitoring?.systeminformation?.charts?.cpu) {
       metrics["cpu"] = sysStats()?.cpuCurrentSpeed.avg || 0;
     }
 
-    if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.charts
-        ?.memory
-    ) {
+    if (globalConfig?.settings?.monitoring?.systeminformation?.charts?.memory) {
       metrics["memory"] = calculateMemoryUsage(
         sysStats()?.mem.total || 0,
         sysStats()?.mem.active || 0
       );
     }
 
-    if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.charts
-        ?.disk
-    ) {
+    if (globalConfig?.settings?.monitoring?.systeminformation?.charts?.disk) {
       metrics["disk"] = calculateDiskUsage(sysStats()?.fsSize || []);
     }
 
@@ -210,16 +208,12 @@ export const MonitorCharts = ({
       <section class="h-full w-full">
         <Tabs>
           <TabsList>
-            <For
-              each={Object.keys(
-                globalConfig?.features?.monitoring?.systeminformation?.charts
-              )}
-            >
+            <For each={Object.keys(metricData() || {})}>
               {(item) => (
                 <TabsTrigger value={item}>
                   {
                     Object(
-                      globalConfig?.features?.monitoring?.systeminformation
+                      globalConfig?.settings?.monitoring?.systeminformation
                         ?.charts
                     )[item].label
                   }
@@ -228,14 +222,8 @@ export const MonitorCharts = ({
             </For>
             <TabsTrigger value="allCharts">All</TabsTrigger>
           </TabsList>
-          <For
-            each={Object.keys(
-              globalConfig?.features?.monitoring?.systeminformation?.charts
-            )}
-          >
+          <For each={Object.keys(metricData() || {})}>
             {(item) => {
-              const chartConfig =
-                globalConfig?.features?.monitoring?.systeminformation?.charts;
               return (
                 <TabsContent value={item}>
                   <MonitorLineChart
@@ -249,14 +237,8 @@ export const MonitorCharts = ({
             }}
           </For>
           <TabsContent value="allCharts">
-            <For
-              each={Object.keys(
-                globalConfig?.features?.monitoring?.systeminformation?.charts
-              )}
-            >
+            <For each={Object.keys(metricData() || {})}>
               {(item) => {
-                const chartConfig =
-                  globalConfig?.features?.monitoring?.systeminformation?.charts;
                 return (
                   <MonitorLineChart
                     backgroundColor={Object(chartConfig)[item]?.backgroundColor}
@@ -274,7 +256,7 @@ export const MonitorCharts = ({
   );
 };
 
-export const SystemMetrics = ({
+export const SystemLiveFeed = ({
   sysStats,
 }: {
   sysStats: Accessor<SystemMonitorMetrics | undefined>;
@@ -283,13 +265,13 @@ export const SystemMetrics = ({
     const metrics: Record<string, number> = {};
 
     if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.stats?.cpu
+      globalConfig?.settings?.monitoring?.systeminformation?.realtimeFeed?.cpu
     ) {
       metrics["cpu"] = sysStats()?.cpuCurrentSpeed.avg || 0;
     }
 
     if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.stats
+      globalConfig?.settings?.monitoring?.systeminformation?.realtimeFeed
         ?.memory
     ) {
       metrics["memory"] = calculateMemoryUsage(
@@ -299,7 +281,7 @@ export const SystemMetrics = ({
     }
 
     if (
-      Object(globalConfig)?.features?.monitoring?.systeminformation?.stats?.disk
+      globalConfig?.settings?.monitoring?.systeminformation?.realtimeFeed?.disk
     ) {
       metrics["disk"] = calculateDiskUsage(sysStats()?.fsSize || []);
     }
@@ -339,8 +321,10 @@ export const SystemMetrics = ({
               <div class="space-y-2.5">
                 <CardDescription>
                   {
-                    Object(globalConfig)?.features?.monitoring
-                      ?.systeminformation?.stats[name]?.label
+                    Object(
+                      globalConfig.settings?.monitoring?.systeminformation
+                        ?.realtimeFeed
+                    )?.[name]?.label
                   }
                 </CardDescription>
                 <CardTitle>{val}%</CardTitle>

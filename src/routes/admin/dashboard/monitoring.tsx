@@ -10,7 +10,7 @@ import {
 import {
   MonitorCharts,
   MonitoringStatCard,
-  SystemMetrics,
+  SystemLiveFeed,
 } from "~/components/monitoring";
 
 const MonitoringPage = () => {
@@ -21,13 +21,25 @@ const MonitoringPage = () => {
     createSignal<SystemMonitorMetrics>();
 
   onMount(async () => {
-    setSysInfoMetrics(await sysInfoMetricsAction());
+    if (
+      globalConfig.settings.monitoring?.systeminformation?.realtimeFeed
+        ?.enabled ||
+      globalConfig.settings.monitoring?.systeminformation?.charts?.enabled
+    ) {
+      setSysInfoMetrics(await sysInfoMetricsAction());
+    }
     setSysInfo(await sysInfoAction());
   });
 
   const fetcher = setInterval(async () => {
-    setSysInfoMetrics(await sysInfoMetricsAction());
-  }, 1000);
+    if (
+      globalConfig.settings.monitoring?.systeminformation?.realtimeFeed
+        ?.enabled ||
+      globalConfig.settings.monitoring?.systeminformation?.charts?.enabled
+    ) {
+      setSysInfoMetrics(await sysInfoMetricsAction());
+    }
+  }, globalConfig.settings.monitoring?.systeminformation?.realtimeFeed?.pollingSeconds || 3000);
   onCleanup(() => clearInterval(fetcher));
 
   return (
@@ -35,19 +47,18 @@ const MonitoringPage = () => {
       <h2 class="heading-2">System Overview</h2>
       <Show
         when={
-          Object(globalConfig)?.features?.monitoring?.systeminformation
-            ?.charts !== undefined
+          globalConfig?.settings?.monitoring?.systeminformation?.charts?.enabled
         }
       >
         <MonitorCharts sysStats={sysInfoStats} />
       </Show>
       <Show
         when={
-          Object(globalConfig)?.features?.monitoring?.systeminformation
-            ?.stats !== undefined
+          globalConfig.settings.monitoring?.systeminformation?.realtimeFeed
+            ?.enabled
         }
       >
-        <SystemMetrics sysStats={sysInfoStats} />
+        <SystemLiveFeed sysStats={sysInfoStats} />
       </Show>
       <h3 class="heading-3">System Details</h3>
       <MonitoringStatCard sysInfo={sysInfo} />

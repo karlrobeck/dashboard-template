@@ -5,36 +5,22 @@ import {
   redirect,
   useNavigate,
 } from "@solidjs/router";
-import { onMount, Show } from "solid-js";
-import { getEvent, useSession } from "vinxi/http";
-import { sessionConfig, verifyLogin, verifyRole } from "~/lib/security";
 
-const fetchLogin = action(async (data: FormData) => {
-  "use server";
-  const username = data.get("username");
-  const password = data.get("password");
-  // check if both present
-  if (!username || !password) {
-    // return invalid username or password
-    return;
-  }
-  // check if match with env file
-  if (
-    username.toString() !== "username" ||
-    password.toString() !== "password"
-  ) {
-    // return invalid username or password
-    return;
-  }
-  // create a auth token and store it in cookie
-  const event = getEvent();
-  const session = await useSession(event, sessionConfig);
-  await session.update({
-    role: "admin",
-    scopes: ["admin:monitor:metrics:read", "admin:monitor:sysInfo:read"],
-  });
-  throw redirect("/admin/dashboard", 308);
-});
+import { onMount, Show } from "solid-js";
+import { getEvent } from "vinxi/http";
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import Input from "~/components/ui/Input";
+import { Label } from "~/components/ui/label";
+import { globalConfig } from "~/config";
+import { fetchLogin, verifyLogin } from "~/lib/security";
 
 const LoginPage = () => {
   // verify if the user is logged in
@@ -42,7 +28,10 @@ const LoginPage = () => {
   const isLoggedIn = createAsync(async () => {
     "use server";
     const event = getEvent();
-    return await verifyLogin(event);
+    const result = await verifyLogin(event);
+    if (result) {
+      return;
+    }
   });
   onMount(() => {
     if (isLoggedIn()) {
@@ -51,22 +40,52 @@ const LoginPage = () => {
   });
   return (
     <Show when={!isLoggedIn()}>
-      <main>
-        <form action={fetchLogin} method="post">
-          <input
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            required
-            type="text"
-            name="username"
-          />
-          <input
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            required
-            type="text"
-            name="password"
-          />
-          <button>Submit</button>
-        </form>
+      <main class="container mx-auto max-w-[1440px] w-full max-h-screen h-screen grid grid-cols-2">
+        <div class="h-full w-full bg-accent p-4 flex flex-col justify-between">
+          <div class="space-y-2.5">
+            <h4 class="heading-4">{globalConfig.general.companyName}</h4>
+            <p class="lead small">{globalConfig.general.applicationName}</p>
+          </div>
+          <span class="muted">Developed by: Karl Robeck Alferez</span>
+        </div>
+        <div class="h-full w-full flex justify-center items-center px-24">
+          <Card class="w-full">
+            <CardHeader>
+              <CardTitle>Login</CardTitle>
+              <CardDescription>Login with your credentials</CardDescription>
+            </CardHeader>
+            <form action={fetchLogin} method="post">
+              <CardContent class="space-y-2.5 w-full">
+                <div class="w-full">
+                  <Label for="username" class="pb-1.5">
+                    Email
+                  </Label>
+                  <Input
+                    id="username"
+                    class="w-full"
+                    type="username"
+                    name="username"
+                  />
+                </div>
+                <div class="w-full">
+                  <Label for="email" class="pb-1.5">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    class="w-full"
+                    type="password"
+                    name="password"
+                  />
+                </div>
+              </CardContent>
+              <CardFooter class="gap-x-2.5">
+                <Button type="submit">Log In</Button>
+                <Button variant="link">Forgot Password?</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
       </main>
     </Show>
   );

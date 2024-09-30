@@ -1,32 +1,102 @@
-export const globalConfig = {
-  features: {
+export interface globalConfigType {
+  general: Record<string, any>;
+  navigation: Record<string, any>;
+  security: SecurityConfig;
+  settings: SettingsConfig;
+}
+
+export interface SecurityConfig {
+  username: string;
+  password: string;
+}
+
+export interface SettingsConfig {
+  monitoring?: MonitoringConfig;
+}
+
+export interface MonitoringConfig {
+  systeminformation?: SystemInformationConfig;
+}
+
+export interface SystemInformationConfig {
+  realtimeFeed?: RealtimeFeed;
+  charts?: RealtimeChartFeed;
+  sysInfo?: SysInfoConfig;
+}
+
+export interface ToggleFeature {
+  enabled: boolean;
+  documentation?: string;
+}
+
+export interface SysInfoConfig extends ToggleFeature {
+  listInfo: string[];
+}
+
+export interface RealtimeFeed extends ToggleFeature {
+  cpu?: RealtimeFeedConfig;
+  memory?: RealtimeFeedConfig;
+  disk?: RealtimeFeedConfig;
+  pollingSeconds?: number;
+}
+
+export interface RealtimeChartFeed extends ToggleFeature {
+  cpu?: RealtimeChartConfig;
+  memory?: RealtimeChartConfig;
+  disk?: RealtimeChartConfig;
+}
+
+export interface RealtimeFeedConfig {
+  label: string;
+  documentation?: string;
+}
+
+export interface RealtimeChartConfig {
+  label: string;
+  backgroundColor?: string;
+  documentation?: string;
+}
+
+export const globalConfig: globalConfigType = {
+  general: {
+    companyName: "Marahuyo Developers",
+    applicationName: "Monitoring System",
+  },
+  navigation: {
+    monitoring: {
+      href: "/admin/dashboard/monitoring",
+      icon: <i class="bi bi-display"></i>,
+    },
+  },
+  security: {
+    username: "karlrobeck",
+    password: "randompassword",
+  },
+  settings: {
     monitoring: {
       systeminformation: {
-        stats: {
+        realtimeFeed: {
           enabled: true,
           documentation:
             "Enable or disable the collection of system statistics.",
           cpu: {
-            enable: true,
             label: "CPU Usage",
             documentation:
               "Enable or disable the collection of CPU usage statistics.",
           },
           memory: {
-            enable: true,
             label: "Memory Usage",
             documentation:
               "Enable or disable the collection of memory usage statistics.",
           },
           disk: {
-            enable: true,
             label: "Disk Usage",
             documentation:
               "Enable or disable the collection of disk usage statistics.",
           },
         },
         charts: {
-          enable: true,
+          enabled: true,
           cpu: {
             label: "CPU Usage",
             backgroundColor: "",
@@ -46,7 +116,7 @@ export const globalConfig = {
             "Enable or disable the display of system information charts.",
         },
         sysInfo: {
-          enable: true,
+          enabled: true,
           documentation: "Enable or disable the display of system information.",
           listInfo: [
             "cpu",

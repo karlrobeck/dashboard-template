@@ -1,13 +1,14 @@
 import { Location, RouteSectionProps } from "@solidjs/router";
 import { For, Match, Switch } from "solid-js";
 import { Button } from "~/components/ui/button";
-import globalConfig from "~/../config.json";
+
 import lodash from "lodash";
+import { globalConfig } from "~/config";
 const SettingsSidebarNav = ({ location }: { location: Location }) => {
   return (
     <aside class="h-full border-r p-4 col-span-2">
       <ul class="space-y-2.5">
-        <For each={Object.keys(globalConfig.features)}>
+        <For each={Object.keys(globalConfig.settings)}>
           {(item) => (
             <li>
               <a href={`/admin/dashboard/settings/${item}`}>

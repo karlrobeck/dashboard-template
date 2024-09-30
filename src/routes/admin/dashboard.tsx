@@ -4,37 +4,50 @@ import {
   createAsync,
   Location,
   RouteSectionProps,
+  useAction,
   useNavigate,
 } from "@solidjs/router";
-import { onMount, Show, Suspense } from "solid-js";
+import { For, onMount, Show, Suspense } from "solid-js";
 import { getEvent } from "vinxi/http";
-import { verifyLogin } from "~/lib/security";
+import { signOut, verifyLogin } from "~/lib/security";
+import { globalConfig } from "~/config";
+import lodash from "lodash";
 
 const DashboardSidebarNav = ({ location }: { location: Location }) => {
   return (
-    <ul class="pt-[1.25rem] space-y-2.5">
+    <ul class="pt-2.5 space-y-2.5">
       <li>
-        <a href="/admin/dashboard/monitoring">
-          <Button
-            classList={{
-              "bg-accent hover:bg-accent/70": location.pathname.startsWith(
-                "/admin/dashboard/monitoring"
-              ),
-            }}
-            variant={"ghost"}
-            class="w-full justify-start gap-2.5"
-          >
-            <i class="bi bi-house-door"></i>
-            Monitoring
-          </Button>
-        </a>
+        <span class="muted">Navigation</span>
+      </li>
+      <For each={Object.entries(globalConfig.navigation)}>
+        {([key, val]) => (
+          <li>
+            <a href={val.href}>
+              <Button
+                classList={{
+                  "bg-accent hover:bg-accent/70": location.pathname.startsWith(
+                    val.href
+                  ),
+                }}
+                variant={"ghost"}
+                class="w-full justify-start gap-2.5"
+              >
+                {val.icon}
+                {lodash.startCase(key)}
+              </Button>
+            </a>
+          </li>
+        )}
+      </For>
+      <li>
+        <span class="muted">System</span>
       </li>
       <li>
-        <a href="/admin/dashboard/settings">
+        <a href="/admin/dashboard/settings/monitoring">
           <Button
             classList={{
               "bg-accent hover:bg-accent/70": location.pathname.startsWith(
-                "/admin/dashboard/settings"
+                "/admin/dashboard/settings/monitoring"
               ),
             }}
             variant={"ghost"}
@@ -61,13 +74,24 @@ const DashboardSidebarNav = ({ location }: { location: Location }) => {
           </Button>
         </a>
       </li>
+      <li>
+        <form action={signOut} method="post">
+          <Button
+            type="submit"
+            variant={"ghost"}
+            class="w-full justify-start gap-2.5"
+          >
+            <i class="bi bi-box-arrow-left"></i>
+            Sign out
+          </Button>
+        </form>
+      </li>
     </ul>
   );
 };
 
 const DashboardLayout = (props: RouteSectionProps) => {
   const navigate = useNavigate();
-
   const isLoggedIn = createAsync(async () => {
     "use server";
     const event = getEvent();
@@ -83,7 +107,8 @@ const DashboardLayout = (props: RouteSectionProps) => {
     <Show when={isLoggedIn()}>
       <main class="flex max-h-screen h-screen">
         <aside class="w-1/6 p-4 border-border border-r">
-          <h4>Dashboard Template</h4>
+          <h4 class="heading-4">{globalConfig.general.applicationName}</h4>
+          <span class="muted">{globalConfig.general.companyName}</span>
           <DashboardSidebarNav location={props.location} />
         </aside>
         <div class="w-full h-full">

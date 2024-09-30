@@ -2,8 +2,8 @@ import { action } from "@solidjs/router";
 import sysInfo from "systeminformation";
 import { getEvent } from "vinxi/http";
 import { verifyRole, verifyScopes } from "./security";
-import globalConfig from "~/../config.json";
 import { Accessor, createEffect } from "solid-js";
+import { globalConfig } from "~/config";
 
 export interface SystemMonitorInfo {
   cpu: sysInfo.Systeminformation.CpuData;
@@ -74,8 +74,8 @@ export const fetchSysInfo = action(
     }
     const sysConfig = () => {
       const obj: any = {};
-      for (let key of globalConfig.features.monitoring.systeminformation
-        .sysInfo) {
+      for (let key of globalConfig.settings.monitoring?.systeminformation
+        ?.sysInfo?.listInfo || []) {
         obj[key] = "*";
       }
       return obj;

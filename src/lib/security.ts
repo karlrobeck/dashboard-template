@@ -22,15 +22,14 @@ export async function verifyRole(
   event: HTTPEvent,
   roles: string[]
 ): Promise<boolean> {
-  const session = await getSession(event, sessionConfig);
+  const session = await getSession<UserSession>(event, sessionConfig);
+  const sessionData = session.data;
 
-  const sessionData: UserSession = session.data;
-
-  if (!sessionData.role) {
+  if (!sessionData?.role) {
     return false;
   }
 
-  if (!roles.includes(sessionData.role)) {
+  if (!roles.includes(sessionData?.role)) {
     return false;
   }
   return true;
@@ -40,16 +39,16 @@ export async function verifyScopes(
   event: HTTPEvent,
   scopes: string[]
 ): Promise<boolean> {
-  const session = await getSession(event, sessionConfig);
+  const session = await useSession(event, sessionConfig);
 
-  const sessionData: UserSession = session.data;
+  const sessionData: UserSession = session?.data;
 
-  if (!sessionData.scopes) {
+  if (!sessionData?.scopes) {
     return false;
   }
 
   const verifiedScopes = scopes.filter((val) => {
-    if (!sessionData.scopes?.includes(val)) {
+    if (!sessionData?.scopes?.includes(val)) {
       return false;
     } else {
       return true;
@@ -62,8 +61,13 @@ export async function verifyScopes(
 }
 
 export async function verifyLogin(event: HTTPEvent): Promise<boolean> {
-  if (await verifyRole(event, ["admin"])) {
-    return true;
+  try {
+    if (await verifyRole(event, ["admin"])) {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error(e);
+    return false;
   }
-  return false;
 }

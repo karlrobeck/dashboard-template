@@ -32,11 +32,13 @@ const SettingsSidebarNav = ({ location }: { location: Location }) => {
 
 const SettingsLayout = (props: RouteSectionProps) => {
   return (
-    <div class="h-full">
+    <div class="h-full overflow-y-hidden">
       <h4 class="heading-2 border-b border-border pb-4">Settings</h4>
       <div class="grid grid-cols-12 w-full h-full">
         <SettingsSidebarNav location={props.location} />
-        <div class="p-4 col-span-10">{props.children}</div>
+        <div class="p-4 col-span-10 overflow-y-auto h-[90%]">
+          {props.children}
+        </div>
       </div>
     </div>
   );

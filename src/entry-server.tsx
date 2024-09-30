@@ -1,6 +1,7 @@
 // @refresh reload
 import { createHandler, StartServer } from "@solidjs/start/server";
-
+import { ErrorBoundary } from "solid-js";
+import { HttpStatusCode } from "@solidjs/start";
 export default createHandler(() => (
   <StartServer
     document={({ assets, children, scripts }) => (
@@ -11,10 +12,21 @@ export default createHandler(() => (
           <link rel="icon" href="/favicon.ico" />
           {assets}
         </head>
-        <body class="dark bg-background text-foreground">
-          <div id="app">{children}</div>
-          {scripts}
-        </body>
+        <ErrorBoundary
+          fallback={(e) => {
+            console.log(e);
+            return (
+              <>
+                <HttpStatusCode code={404} />
+              </>
+            );
+          }}
+        >
+          <body class="dark bg-background text-foreground">
+            <div id="app">{children}</div>
+            {scripts}
+          </body>
+        </ErrorBoundary>
       </html>
     )}
   />

@@ -71,7 +71,8 @@ const DashboardLayout = (props: RouteSectionProps) => {
   const isLoggedIn = createAsync(async () => {
     "use server";
     const event = getEvent();
-    return await verifyLogin(event);
+    const result = await verifyLogin(event);
+    return result;
   });
   onMount(() => {
     if (!isLoggedIn()) {
@@ -86,11 +87,11 @@ const DashboardLayout = (props: RouteSectionProps) => {
           <DashboardSidebarNav location={props.location} />
         </aside>
         <div class="w-full h-full">
-          <div class="h-full px-4 pb-4 overflow-y-auto space-y-4">
+          <div class="h-full px-4 space-y-4">
             <div class="sticky top-0 bg-background py-4 z-50 border-b border-border">
               <BreadcrumbURL />
             </div>
-            {props.children}
+            <div class="h-[90%] pb-4 overflow-y-auto">{props.children}</div>
           </div>
         </div>
       </main>

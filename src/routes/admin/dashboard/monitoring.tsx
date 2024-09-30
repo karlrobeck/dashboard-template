@@ -1,9 +1,7 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { useAction } from "@solidjs/router";
-import globalConfig from "~/../config.json";
+import { globalConfig } from "~/config";
 import {
-  calculateDiskUsage,
-  calculateMemoryUsage,
   fetchSysInfo,
   fetchSysMetrics,
   SystemMonitorInfo,
@@ -33,7 +31,7 @@ const MonitoringPage = () => {
   onCleanup(() => clearInterval(fetcher));
 
   return (
-    <article class="space-y-4">
+    <article class="space-y-4 ">
       <h2 class="heading-2">System Overview</h2>
       <Show
         when={
